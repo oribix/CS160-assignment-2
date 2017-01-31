@@ -167,11 +167,8 @@ int main(int argc, char **argv)
 void eval(char *cmdline) 
 {
   char *argv[MAXARGS];
-  bool isBG = parseline(cmdline, argv);
-
-  //remove me
-  if(isBG) printf("is BG job\n");
-  else printf("is FG job\n");
+  //bool isBG = 
+  parseline(cmdline, argv);
 
   //gets argument count of command
   int argc = 0;
@@ -248,7 +245,7 @@ int parseline(const char *cmdline, char **argv)
 int builtin_cmd(char **argv) 
 {
   char* cmd = argv[0];
-  printf("cmd: %s\n", cmd);
+
   if(!strcmp(cmd, "quit")) exit(0);
   if(!strcmp(cmd, "jobs")){
     listjobs(jobs);
@@ -256,12 +253,10 @@ int builtin_cmd(char **argv)
   }
   if(!strcmp(cmd, "bg")){
     //todo: send job to background
-    printf("sent to bg\n");
     return 1;
   }
   if(!strcmp(cmd, "fg")){
     //todo: send job to foreground
-    printf("sent to fg\n");
     return 1;
   }
 
