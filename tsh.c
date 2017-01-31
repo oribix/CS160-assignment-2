@@ -180,7 +180,7 @@ void eval(char *cmdline)
     pid_t pid = fork();
     int status = 0;
     if(!pid){ //child
-      printf("child\n");
+      execve(argv[0], argv, environ);
       exit(0);
     }
     else {
