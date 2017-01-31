@@ -119,7 +119,7 @@ int main(int argc, char **argv)
   /* Install the signal handlers */
 
   /* These are the ones you will need to implement */
-  //Signal(SIGINT,  sigint_handler);   /* ctrl-c */
+  Signal(SIGINT,  sigint_handler);   /* ctrl-c */
   Signal(SIGTSTP, sigtstp_handler);  /* ctrl-z */
   Signal(SIGCHLD, sigchld_handler);  /* Terminated or stopped child */
 
@@ -169,17 +169,24 @@ void eval(char *cmdline)
   char *argv[MAXARGS];
   bool isBG = parseline(cmdline, argv);
 
-  int i = 0;
-  while(argv[i] != NULL) i++;
+  //remove me
+  if(isBG) printf("is BG job\n");
+  else printf("is FG job\n");
 
-  printf("i: %i\n", i);
+  //gets argument count of command
+  int argc = 0;
+  while(argv[argc] != NULL) argc++;
+
+  if(argc == 0) return; //return if nothing
+
+  if(builtin_cmd(argv)) return; //return if a command is built in
 
   return;
 }
 
-/* 
+/*
  * parseline - Parse the command line and build the argv array.
- * 
+ *
  * Characters enclosed in single quotes are treated as a single
  * argument.  Return true if the user has requested a BG job, false if
  * the user has requested a FG job.  
@@ -240,6 +247,24 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+  char* cmd = argv[0];
+  printf("cmd: %s\n", cmd);
+  if(!strcmp(cmd, "quit")) exit(0);
+  if(!strcmp(cmd, "jobs")){
+    listjobs(jobs);
+    return 1;
+  }
+  if(!strcmp(cmd, "bg")){
+    //todo: send job to background
+    printf("sent to bg\n");
+    return 1;
+  }
+  if(!strcmp(cmd, "fg")){
+    //todo: send job to foreground
+    printf("sent to fg\n");
+    return 1;
+  }
+
   return 0;     /* not a builtin command */
 }
 
