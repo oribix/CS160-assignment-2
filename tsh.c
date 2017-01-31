@@ -176,8 +176,18 @@ void eval(char *cmdline)
 
   if(argc == 0) return; //return if nothing
 
-  if(builtin_cmd(argv)) return; //return if a command is built in
-
+  if(!builtin_cmd(argv)){
+    pid_t pid = fork();
+    int status = 0;
+    if(!pid){ //child
+      printf("child\n");
+      exit(0);
+    }
+    else {
+      waitpid(pid, &status, 0);
+    }
+  }
+  
   return;
 }
 
