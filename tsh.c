@@ -261,12 +261,8 @@ int builtin_cmd(char **argv)
     listjobs(jobs);
     return 1;
   }
-  if(!strcmp(cmd, "bg")){
-    //todo: send job to background
-    return 1;
-  }
-  if(!strcmp(cmd, "fg")){
-    //todo: send job to foreground
+  if(!strcmp(cmd, "bg") || !strcmp(cmd, "fg")){
+    do_bgfg(argv);
     return 1;
   }
 
@@ -278,6 +274,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+  //char* cmd = argv[0];
   return;
 }
 
