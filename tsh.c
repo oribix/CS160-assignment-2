@@ -119,7 +119,7 @@ int main(int argc, char **argv)
   /* Install the signal handlers */
 
   /* These are the ones you will need to implement */
-  Signal(SIGINT,  sigint_handler);   /* ctrl-c */
+  //Signal(SIGINT,  sigint_handler);   /* ctrl-c */
   Signal(SIGTSTP, sigtstp_handler);  /* ctrl-z */
   Signal(SIGCHLD, sigchld_handler);  /* Terminated or stopped child */
 
@@ -173,20 +173,26 @@ void eval(char *cmdline)
   //gets argument count of command
   int argc = 0;
   while(argv[argc] != NULL) argc++;
-
   if(argc == 0) return; //return if nothing
 
   if(!builtin_cmd(argv)){
     //block signals
-    pid_t pid = fork();
-    if(!pid){ //child
-      //add child to jobs list
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
+    pid_t pid;
+    if((pid = fork()) == 0){ //child
+      sigprocmask(SIG_UNBLOCK, &mask, NULL);
       execve(argv[0], argv, environ);
       exit(0);
     }
-    else {
-      waitfg(pid);
-    }
+    
+    //parent
+    addjob(jobs, pid, FG, cmdline);
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    waitfg(pid);
   }
   
   return;
@@ -288,11 +294,9 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   struct job_t* job = getjobpid(jobs, pid);
-  if(job ==  NULL){
-    printf("Job was null\n");
-    return;
-  }
-  while(job->state == FG);
+  if(job ==  NULL) return;
+
+  while(job->state == FG) sleep(1);
   return;
 }
 
@@ -305,10 +309,15 @@ void waitfg(pid_t pid)
  *     a child job terminates (becomes a zombie), or stops because it
  *     received a SIGSTOP or SIGTSTP signal. The handler reaps all
  *     available zombie children, but doesn't wait for any other
- *     currently running children to terminate.  
- */
+ *     currently running children to terminate.
+*/
 void sigchld_handler(int sig) 
 {
+  pid_t pid;
+  while((pid = waitpid(-1, NULL, 0)) > 0)
+    deletejob(jobs, pid);
+  if(errno != ECHILD)
+    unix_error("waitpid error");
   return;
 }
 
