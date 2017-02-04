@@ -167,8 +167,12 @@ int main(int argc, char **argv)
 void eval(char *cmdline) 
 {
   char *argv[MAXARGS];
-  //bool isBG = 
-  parseline(cmdline, argv);
+  bool bg = parseline(cmdline, argv);
+
+  //get job state
+  int state;
+  if(bg) state = BG;
+  else state = FG;
 
   //gets argument count of command
   int argc = 0;
@@ -190,8 +194,12 @@ void eval(char *cmdline)
     }
     
     //parent
-    addjob(jobs, pid, FG, cmdline);
-    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    addjob(jobs, pid, state, cmdline);
+    if(state == BG){
+      struct job_t *job = getjobpid(jobs, pid);
+      printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+    }
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);//unblock signals
     waitfg(pid);
   }
   
