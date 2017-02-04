@@ -177,14 +177,15 @@ void eval(char *cmdline)
   if(argc == 0) return; //return if nothing
 
   if(!builtin_cmd(argv)){
+    //block signals
     pid_t pid = fork();
-    int status = 0;
     if(!pid){ //child
+      //add child to jobs list
       execve(argv[0], argv, environ);
       exit(0);
     }
     else {
-      waitpid(pid, &status, 0);
+      waitfg(pid);
     }
   }
   
@@ -274,7 +275,10 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-  //char* cmd = argv[0];
+  char* cmd = argv[0];
+  if(strcmp(cmd, "fg") == 0);
+  else if(strcmp(cmd, "bg") == 0);
+
   return;
 }
 
@@ -283,6 +287,12 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+  struct job_t* job = getjobpid(jobs, pid);
+  if(job ==  NULL){
+    printf("Job was null\n");
+    return;
+  }
+  while(job->state == FG);
   return;
 }
 
