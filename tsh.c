@@ -186,11 +186,15 @@ void eval(char *cmdline)
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    pid_t pid;
-    if((pid = fork()) == 0){ //child
-      sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    //fork
+    pid_t pid = fork();
+    if(-1 == pid) perror("fork: ");
+
+    if(pid == 0){ //child
+      if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
+        perror("child sigprocmask: ");
       execve(argv[0], argv, environ);
-      exit(0);
+      exit(-1);
     }
     
     //parent
@@ -199,7 +203,11 @@ void eval(char *cmdline)
       struct job_t *job = getjobpid(jobs, pid);
       printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
     }
-    sigprocmask(SIG_UNBLOCK, &mask, NULL);//unblock signals
+
+    //unblock signals
+    if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
+      perror("parent sigprocmask: ");
+
     waitfg(pid);
   }
   
@@ -302,9 +310,12 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   struct job_t* job = getjobpid(jobs, pid);
-  if(job ==  NULL) return;
+  if(job ==  NULL){
+    printf("job not found!\n");
+    return;
+  }
 
-  while(job->state == FG) sleep(1);
+  while(job->state == FG) sleep(0);
   return;
 }
 
@@ -322,8 +333,13 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
   pid_t pid;
-  while((pid = waitpid(-1, NULL, 0)) > 0)
-    deletejob(jobs, pid);
+  int status;
+  while((pid = waitpid(-1, &status, 0)) > 0){
+    if(WIFEXITED(status))
+      deletejob(jobs, pid);
+      return;
+  }
+
   if(errno != ECHILD)
     unix_error("waitpid error");
   return;
