@@ -119,7 +119,7 @@ int main(int argc, char **argv)
   /* Install the signal handlers */
 
   /* These are the ones you will need to implement */
-  //Signal(SIGINT,  sigint_handler);   /* ctrl-c */
+  Signal(SIGINT,  sigint_handler);   /* ctrl-c */
   Signal(SIGTSTP, sigtstp_handler);  /* ctrl-z */
   Signal(SIGCHLD, sigchld_handler);  /* Terminated or stopped child */
 
@@ -192,7 +192,7 @@ void eval(char *cmdline)
 
     if(pid == 0){ //child
       if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
-        perror("child sigprocmask: ");
+        unix_error("child sigprocmask: ");
       execve(argv[0], argv, environ);
       exit(-1);
     }
@@ -206,7 +206,7 @@ void eval(char *cmdline)
 
     //unblock signals
     if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
-      perror("parent sigprocmask: ");
+      unix_error("parent sigprocmask: ");
 
     waitfg(pid);
   }
@@ -352,6 +352,11 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+  pid_t pid = fgpid(jobs);
+  if(0 == pid) return;
+
+  if(-1 == kill(pid, SIGINT)) perror("SIGINT: ");
+  if(0 == deletejob(jobs, pid)) unix_error("deletejob");
   return;
 }
 
