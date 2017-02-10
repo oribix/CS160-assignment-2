@@ -355,8 +355,29 @@ void sigint_handler(int sig)
   pid_t pid = fgpid(jobs);
   if(0 == pid) return;
 
-  if(-1 == kill(pid, SIGINT)) perror("SIGINT: ");
-  if(0 == deletejob(jobs, pid)) unix_error("deletejob");
+  //send SIGINT to fg process
+  if(-1 == kill(pid, SIGINT)){
+    perror("SIGINT: ");
+    return;
+  }
+
+  //job terminated message
+  struct job_t *job = getjobpid(jobs, pid);
+  if(job != NULL){
+    int jid = job->jid;
+    printf("Job [%i] (%i) terminated by signal %i\n", jid, pid, sig);
+  }
+  else { 
+    printf("Job was NULL!\n");
+    return;
+  }
+
+  //delete the job
+  if(0 == deletejob(jobs, pid)){
+    unix_error("deletejob");
+    return;
+  }
+
   return;
 }
 
