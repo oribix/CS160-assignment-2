@@ -188,7 +188,7 @@ void eval(char *cmdline)
 
     //fork
     pid_t pid = fork();
-    if(-1 == pid) perror("fork: ");
+    if(-1 == pid) unix_error("fork");
 
     if(pid == 0){ //child
       if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
@@ -196,7 +196,7 @@ void eval(char *cmdline)
       execve(argv[0], argv, environ);
       exit(-1);
     }
-    
+
     //parent
     addjob(jobs, pid, state, cmdline);
     if(state == BG){
@@ -210,7 +210,7 @@ void eval(char *cmdline)
 
     waitfg(pid);
   }
-  
+
   return;
 }
 
@@ -329,15 +329,30 @@ void waitfg(pid_t pid)
  *     received a SIGSTOP or SIGTSTP signal. The handler reaps all
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.
-*/
+ */
 void sigchld_handler(int sig) 
 {
   pid_t pid;
   int status;
-  while((pid = waitpid(-1, &status, 0)) > 0){
-    if(WIFEXITED(status))
+  while((pid = waitpid(-1, &status, WNOHANG)) > 0){
+    if(WIFEXITED(status)){
       deletejob(jobs, pid);
       return;
+    }
+
+    if(WIFSIGNALED(status)){
+      int signum = WTERMSIG(status);
+      //job terminated message
+      struct job_t *job = getjobpid(jobs, pid);
+      if(job != NULL){
+        int jid = job->jid;
+        printf("Job [%i] (%i) terminated by signal %i\n", jid, pid, signum);
+        if(0 == deletejob(jobs, pid)) app_error("deletejob");
+      }
+      return;
+    }
+
+
   }
 
   if(errno != ECHILD)
@@ -357,24 +372,7 @@ void sigint_handler(int sig)
 
   //send SIGINT to fg process
   if(-1 == kill(pid, SIGINT)){
-    perror("SIGINT: ");
-    return;
-  }
-
-  //job terminated message
-  struct job_t *job = getjobpid(jobs, pid);
-  if(job != NULL){
-    int jid = job->jid;
-    printf("Job [%i] (%i) terminated by signal %i\n", jid, pid, sig);
-  }
-  else { 
-    printf("Job was NULL!\n");
-    return;
-  }
-
-  //delete the job
-  if(0 == deletejob(jobs, pid)){
-    unix_error("deletejob");
+    unix_error("SIGINT");
     return;
   }
 
@@ -388,6 +386,23 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+  pid_t pid = fgpid(jobs);
+  if(0 == pid) return;
+
+  //send SIGSTOP to fg process
+  if(-1 == kill(pid, SIGSTOP)){
+    unix_error("SIGSTOP");
+    return;
+  }
+
+  //job stopped message
+  struct job_t *job = getjobpid(jobs, pid);
+  if(job != NULL){
+    int jid = job->jid;
+    job->state = ST;
+    printf("Job [%i] (%i) stopped by signal %i\n", jid, pid, sig);
+  }
+
   return;
 }
 
