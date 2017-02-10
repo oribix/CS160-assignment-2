@@ -191,6 +191,7 @@ void eval(char *cmdline)
     if(-1 == pid) unix_error("fork");
 
     if(pid == 0){ //child
+      if(-1 == setpgrp()) unix_error("setpgrp");
       if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
         unix_error("child sigprocmask: ");
       execve(argv[0], argv, environ);
@@ -210,7 +211,6 @@ void eval(char *cmdline)
 
     waitfg(pid);
   }
-
   return;
 }
 
@@ -334,26 +334,36 @@ void sigchld_handler(int sig)
 {
   pid_t pid;
   int status;
-  while((pid = waitpid(-1, &status, WNOHANG)) > 0){
+  errno = 0;
+  if((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0){
+    struct job_t *job = getjobpid(jobs, pid);
+    int jid = job->jid;
+
     if(WIFEXITED(status)){
       deletejob(jobs, pid);
       return;
     }
 
     if(WIFSIGNALED(status)){
-      int signum = WTERMSIG(status);
       //job terminated message
-      struct job_t *job = getjobpid(jobs, pid);
       if(job != NULL){
-        int jid = job->jid;
+        int signum = WTERMSIG(status);
         printf("Job [%i] (%i) terminated by signal %i\n", jid, pid, signum);
-        if(0 == deletejob(jobs, pid)) app_error("deletejob");
+        deletejob(jobs, pid);
       }
-      return;
     }
 
-
+    if(WIFSTOPPED(status)){
+      //job stopped message
+      if(job != NULL){
+        job->state = ST;
+        int signum = WSTOPSIG(status);
+        printf("Job [%i] (%i) stopped by signal %i\n", jid, pid, signum);
+      }
+    }
   }
+
+  if(errno == 0) return;
 
   if(errno != ECHILD)
     unix_error("waitpid error");
@@ -369,13 +379,14 @@ void sigint_handler(int sig)
 {
   pid_t pid = fgpid(jobs);
   if(0 == pid) return;
-
-  //send SIGINT to fg process
-  if(-1 == kill(pid, SIGINT)){
-    unix_error("SIGINT");
+  
+  pid_t pgid;
+  if(-1 == (pgid = getpgid(pid))){
+    unix_error("getpgid");
     return;
   }
-
+  
+  if(-1 == kill(-pgid, SIGINT)) unix_error("SIGINT");
   return;
 }
 
@@ -389,20 +400,14 @@ void sigtstp_handler(int sig)
   pid_t pid = fgpid(jobs);
   if(0 == pid) return;
 
-  //send SIGSTOP to fg process
-  if(-1 == kill(pid, SIGSTOP)){
-    unix_error("SIGSTOP");
+  pid_t pgid;
+  if(-1 == (pgid = getpgid(pid))){
+    unix_error("getpgid");
     return;
   }
-
-  //job stopped message
-  struct job_t *job = getjobpid(jobs, pid);
-  if(job != NULL){
-    int jid = job->jid;
-    job->state = ST;
-    printf("Job [%i] (%i) stopped by signal %i\n", jid, pid, sig);
-  }
-
+  //send SIGTSTP to fg process
+  if(-1 == kill(-pgid, SIGTSTP)) unix_error("SIGTSTP");
+  
   return;
 }
 
