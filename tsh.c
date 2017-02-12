@@ -297,9 +297,59 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-  char* cmd = argv[0];
-  if(strcmp(cmd, "fg") == 0);
-  else if(strcmp(cmd, "bg") == 0);
+  //gets argument count of command
+  int argc = 0;
+  while(argv[argc] != NULL) argc++;
+  if(argc == 0) return; //return if nothing
+  
+  char* cmd = argv[0];          //get command
+  int defaultjid = maxjid(jobs);//default jid is max jid
+  int jid = defaultjid;         //jid of job to operate on
+
+  //get pid or jid of job if specified
+  if(argc > 0){
+    char *idArg = argv[1];
+    bool isjid = false; //if false, id is pid
+
+    //is the argument a jid?
+    if(idArg[0] == '%'){
+      isjid = true;
+      idArg++;
+    }
+
+    //get id from arguement
+    int id = atoi(idArg);
+
+    if(isjid) jid = id;
+    else jid = pid2jid(id);
+  }
+
+  //check if jid is valid
+  struct job_t *job = getjobjid(jobs, jid);
+  if(job == NULL){
+    fprintf(stdout, "no such job\n");
+    return;
+  }
+
+  //get pgid
+  pid_t pgid;
+  if(-1 == (pgid = getpgid(job->pid))){
+    app_error("fgbg: getpgid");
+    return;
+  }
+
+  //send job SIGCONT
+  if(-1 == kill(pgid, SIGCONT)){
+    unix_error("fgbg: SIGCONT");
+    return;
+  }
+
+  //update job state
+  if(strcmp(cmd, "fg") == 0) job->state = FG;
+  else if(strcmp(cmd, "bg") == 0){
+    job->state = BG;
+    printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+  }
 
   return;
 }
