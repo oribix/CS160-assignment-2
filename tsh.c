@@ -195,6 +195,7 @@ void eval(char *cmdline)
       if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
         unix_error("child sigprocmask: ");
       execve(argv[0], argv, environ);
+      if(errno == ENOENT) fprintf(stdout, "%s: Command not found\n", argv[0]);
       exit(-1);
     }
 
@@ -208,8 +209,8 @@ void eval(char *cmdline)
     //unblock signals
     if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
       unix_error("parent sigprocmask: ");
-
-    waitfg(pid);
+    
+    waitfg(fgpid(jobs));
   }
   return;
 }
@@ -306,24 +307,24 @@ void do_bgfg(char **argv)
   int defaultjid = maxjid(jobs);//default jid is max jid
   int jid = defaultjid;         //jid of job to operate on
 
-  //get pid or jid of job if specified
-  if(argc > 0){
-    char *idArg = argv[1];
-    bool isjid = false; //if false, id is pid
+  printf("argc %i\n", argc);
+  if(argc < 1)
+    fprintf(stdout, "%s command require PID or %%jobid argument\n", cmd);
 
-    //is the argument a jid?
-    if(idArg[0] == '%'){
-      isjid = true;
-      idArg++;
-    }
+  char *idArg = argv[1];
+  bool isjid = false; //if false, id is pid
 
-    //get id from arguement
-    int id = atoi(idArg);
-
-    if(isjid) jid = id;
-    else jid = pid2jid(id);
+  //is the argument a jid?
+  if(idArg[0] == '%'){
+    isjid = true;
+    idArg++;
   }
 
+  //get id from arguement
+  int id = atoi(idArg);
+
+  if(isjid) jid = id;
+  else jid = pid2jid(id);
   //check if jid is valid
   struct job_t *job = getjobjid(jobs, jid);
   if(job == NULL){
@@ -350,7 +351,7 @@ void do_bgfg(char **argv)
     job->state = BG;
     printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
   }
-
+ 
   return;
 }
 
@@ -360,10 +361,7 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   struct job_t* job = getjobpid(jobs, pid);
-  if(job ==  NULL){
-    printf("job not found!\n");
-    return;
-  }
+  if(job ==  NULL) return;
 
   while(job->state == FG) sleep(0);
   return;
@@ -385,7 +383,7 @@ void sigchld_handler(int sig)
   pid_t pid;
   int status;
   errno = 0;
-  if((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0){
+  if((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0){
     struct job_t *job = getjobpid(jobs, pid);
     int jid = job->jid;
 
