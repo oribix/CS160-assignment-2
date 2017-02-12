@@ -351,6 +351,8 @@ void do_bgfg(char **argv)
     printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
   }
 
+  if(job != NULL) waitfg(job->pid);
+
   return;
 }
 
