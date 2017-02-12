@@ -209,8 +209,8 @@ void eval(char *cmdline)
     if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
       unix_error("parent sigprocmask: ");
 
-    waitfg(pid);
   }
+  waitfg(fgpid(jobs));
   return;
 }
 
@@ -351,8 +351,6 @@ void do_bgfg(char **argv)
     printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
   }
 
-  if(job != NULL) waitfg(job->pid);
-
   return;
 }
 
@@ -362,12 +360,7 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   struct job_t* job = getjobpid(jobs, pid);
-  if(job ==  NULL){
-    printf("job not found!\n");
-    return;
-  }
-
-  while(job->state == FG) sleep(0);
+  if(job !=  NULL) while(job->state == FG) sleep(0);
   return;
 }
 
