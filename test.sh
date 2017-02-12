@@ -19,5 +19,5 @@ do
   make $test >> results/$test && echo >> results/$test
   make r$test >> results/r$test && echo >> results/r$test
   diff results/$test results/r$test
+  echo -e \\n
 done
-
