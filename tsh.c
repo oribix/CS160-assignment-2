@@ -209,9 +209,8 @@ void eval(char *cmdline)
     //unblock signals
     if(-1 == sigprocmask(SIG_UNBLOCK, &mask, NULL))
       unix_error("parent sigprocmask: ");
-    
-    waitfg(fgpid(jobs));
   }
+  waitfg(fgpid(jobs));
   return;
 }
 
@@ -293,21 +292,20 @@ int builtin_cmd(char **argv)
   return 0;     /* not a builtin command */
 }
 
-/* 
+/*
  * do_bgfg - Execute the builtin bg and fg commands
  */
-void do_bgfg(char **argv) 
+void do_bgfg(char **argv)
 {
   //gets argument count of command
   int argc = 0;
   while(argv[argc] != NULL) argc++;
   if(argc == 0) return; //return if nothing
-  
+
   char* cmd = argv[0];          //get command
   int defaultjid = maxjid(jobs);//default jid is max jid
   int jid = defaultjid;         //jid of job to operate on
 
-  printf("argc %i\n", argc);
   if(argc < 1)
     fprintf(stdout, "%s command require PID or %%jobid argument\n", cmd);
 
@@ -340,7 +338,7 @@ void do_bgfg(char **argv)
   }
 
   //send job SIGCONT
-  if(-1 == kill(pgid, SIGCONT)){
+  if(-1 == kill(-pgid, SIGCONT)){
     unix_error("fgbg: SIGCONT");
     return;
   }
@@ -361,9 +359,7 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   struct job_t* job = getjobpid(jobs, pid);
-  if(job ==  NULL) return;
-
-  while(job->state == FG) sleep(0);
+  if(job !=  NULL) while(job->state == FG) sleep(0);
   return;
 }
 
