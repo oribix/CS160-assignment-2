@@ -292,16 +292,16 @@ int builtin_cmd(char **argv)
   return 0;     /* not a builtin command */
 }
 
-/* 
+/*
  * do_bgfg - Execute the builtin bg and fg commands
  */
-void do_bgfg(char **argv) 
+void do_bgfg(char **argv)
 {
   //gets argument count of command
   int argc = 0;
   while(argv[argc] != NULL) argc++;
   if(argc == 0) return; //return if nothing
-  
+
   char* cmd = argv[0];          //get command
   int defaultjid = maxjid(jobs);//default jid is max jid
   int jid = defaultjid;         //jid of job to operate on
@@ -339,7 +339,7 @@ void do_bgfg(char **argv)
   }
 
   //send job SIGCONT
-  if(-1 == kill(pgid, SIGCONT)){
+  if(-1 == kill(-pgid, SIGCONT)){
     unix_error("fgbg: SIGCONT");
     return;
   }
